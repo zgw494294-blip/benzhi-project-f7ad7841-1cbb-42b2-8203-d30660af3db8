@@ -497,7 +497,7 @@ func (b *CustodyBatch) Receive(input ReceiveInput, now time.Time) error {
 		}
 		byID[key] = result
 	}
-	updatedContainers := b.Containers
+	updatedContainers := append([]Container(nil), b.Containers...)
 	for index, item := range b.Containers {
 		result, ok := byID[strings.ToLower(item.ContainerID)]
 		if !ok {
