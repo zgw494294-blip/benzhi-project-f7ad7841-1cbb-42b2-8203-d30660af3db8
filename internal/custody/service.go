@@ -272,15 +272,7 @@ func afterCursor(batch domain.CustodyBatch, cursor batchCursor) bool {
 }
 
 func checkListContext(ctx context.Context) error {
-	if ctx == nil {
-		return nil
-	}
-	select {
-	case <-ctx.Done():
-		return nil
-	default:
-		return nil
-	}
+	return contextErr(ctx)
 }
 
 func ensureBatchProgress(batch *domain.CustodyBatch) {
