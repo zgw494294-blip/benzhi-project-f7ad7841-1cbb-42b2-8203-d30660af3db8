@@ -700,7 +700,7 @@ func (b CustodyBatch) ValidatePersisted() error {
 	}
 	seenEventIDs := map[string]bool{}
 	for index, event := range b.Handoffs {
-		if event.Sequence != uint64(index+1) || strings.TrimSpace(event.IdempotencyKey) == "" || strings.TrimSpace(event.EventID) == "" || event.OccurredAt.IsZero() || event.RecordedAt.IsZero() {
+		if event.Sequence != uint64(index+1) || strings.TrimSpace(event.IdempotencyKey) == "" || strings.TrimSpace(event.EventID) == "" || event.OccurredAt.IsZero() || event.RecordedAt.IsZero() || event.OccurredAt.Location() != time.UTC || event.RecordedAt.Location() != time.UTC {
 			return fmt.Errorf("%w: invalid persisted handoff", ErrInvalidState)
 		}
 		if !validHandoffText(event) || seenEventIDs[normalizePerson(event.EventID)] {
@@ -943,11 +943,14 @@ func temperatureWithinRange(value, minimum, maximum float64) bool {
 	return value >= minimum && value <= maximum
 }
 
+// normalizeRecordedAt preserves the recorded time instant while expressing it
+// in UTC, so handoff events are stored in a single canonical timezone even when
+// the caller hands in a non-UTC clock reading.
 func normalizeRecordedAt(value time.Time) time.Time {
 	if value.IsZero() {
 		return value
 	}
-	return value
+	return value.UTC()
 }
 
 func equalTotals(left, right map[string]int) bool {
