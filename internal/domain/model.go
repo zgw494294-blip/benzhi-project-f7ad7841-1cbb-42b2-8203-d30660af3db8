@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type BatchStatus string
@@ -491,7 +492,7 @@ func (b *CustodyBatch) Receive(input ReceiveInput, now time.Time) error {
 		if !finite(result.ReceivedTemperatureC) {
 			return fmt.Errorf("%w: received temperature must be finite", ErrInvalidInput)
 		}
-		key := strings.ToLower(id)
+		key := manifestKey(id)
 		if _, exists := byID[key]; exists {
 			return fmt.Errorf("%w: duplicate received container id", ErrInvalidInput)
 		}
@@ -499,7 +500,7 @@ func (b *CustodyBatch) Receive(input ReceiveInput, now time.Time) error {
 	}
 	updatedContainers := b.Containers
 	for index, item := range b.Containers {
-		result, ok := byID[strings.ToLower(item.ContainerID)]
+		result, ok := byID[manifestKey(item.ContainerID)]
 		if !ok {
 			return fmt.Errorf("%w: missing received container %s", ErrInvalidInput, item.ContainerID)
 		}
@@ -672,7 +673,7 @@ func (b CustodyBatch) ValidatePersisted() error {
 	ids := map[string]bool{}
 	seals := map[string]bool{}
 	for _, item := range b.Containers {
-		if strings.TrimSpace(item.ContainerID) == "" || strings.TrimSpace(item.SealNumber) == "" || !finite(item.TemperatureMinC) || !finite(item.TemperatureMaxC) || item.TemperatureMinC > item.TemperatureMaxC || ids[strings.ToLower(item.ContainerID)] || seals[strings.ToLower(item.SealNumber)] {
+		if strings.TrimSpace(item.ContainerID) == "" || strings.TrimSpace(item.SealNumber) == "" || !finite(item.TemperatureMinC) || !finite(item.TemperatureMaxC) || item.TemperatureMinC > item.TemperatureMaxC || ids[manifestKey(item.ContainerID)] || seals[manifestKey(item.SealNumber)] {
 			return fmt.Errorf("%w: invalid persisted container", ErrInvalidState)
 		}
 		if item.Condition != ConditionPending && item.Condition != ConditionNormal && item.Condition != ConditionException {
@@ -695,8 +696,8 @@ func (b CustodyBatch) ValidatePersisted() error {
 				return fmt.Errorf("%w: exception receipt needs a note", ErrInvalidState)
 			}
 		}
-		ids[strings.ToLower(item.ContainerID)] = true
-		seals[strings.ToLower(item.SealNumber)] = true
+		ids[manifestKey(item.ContainerID)] = true
+		seals[manifestKey(item.SealNumber)] = true
 	}
 	seenEventIDs := map[string]bool{}
 	for index, event := range b.Handoffs {
@@ -927,10 +928,39 @@ func validHandoffText(event HandoffEvent) bool {
 	return true
 }
 
-func normalizePerson(value string) string { return strings.ToLower(strings.TrimSpace(value)) }
+func normalizePerson(value string) string { return foldCase(strings.TrimSpace(value)) }
 
 func manifestKey(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	return foldCase(strings.TrimSpace(value))
+}
+
+// foldCase normalizes a string using Unicode case folding so that case-equivalent
+// runes share a single canonical key. Unlike strings.ToLower, this also treats
+// non-ASCII equivalents such as U+017F (ſ) and U+0073 (s), or Greek final/regular
+// sigma variants, as duplicates.
+func foldCase(value string) string {
+	if value == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		b.WriteRune(foldRune(r))
+	}
+	return b.String()
+}
+
+// foldRune returns the smallest rune in the Unicode SimpleFold cycle for r, so
+// every rune that is case-equivalent under strings.EqualFold maps to the same
+// representative rune.
+func foldRune(r rune) rune {
+	min := r
+	for current := unicode.SimpleFold(r); current != r; current = unicode.SimpleFold(current) {
+		if current < min {
+			min = current
+		}
+	}
+	return min
 }
 
 func temperatureWithinRange(value, minimum, maximum float64) bool {
