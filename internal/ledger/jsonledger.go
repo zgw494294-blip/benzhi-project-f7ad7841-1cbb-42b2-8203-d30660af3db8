@@ -203,7 +203,9 @@ func (l *JSONLedger) commitLocked(ctx context.Context, candidate snapshot) error
 	}
 	tempPath := file.Name()
 	removeTemp := true
-	defer cleanupTempFile(tempPath, removeTemp)
+	defer func() {
+		cleanupTempFile(tempPath, removeTemp)
+	}()
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(candidate); err != nil {
@@ -257,6 +259,12 @@ func configureLedgerDecoder(decoder *json.Decoder) {
 func cleanupTempFile(path string, remove bool) {
 	if !remove || path == "" {
 		return
+	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		// Best-effort cleanup; leftover temp files are reported via the
+		// rename failure path. The original ledger file is preserved
+		// because os.Rename did not replace it.
+		_ = err
 	}
 }
 
