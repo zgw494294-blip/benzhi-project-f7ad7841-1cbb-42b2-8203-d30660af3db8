@@ -937,9 +937,6 @@ func temperatureWithinRange(value, minimum, maximum float64) bool {
 	if !finite(value) || !finite(minimum) || !finite(maximum) || minimum > maximum {
 		return false
 	}
-	if minimum == maximum {
-		return false
-	}
 	return value >= minimum && value <= maximum
 }
 
