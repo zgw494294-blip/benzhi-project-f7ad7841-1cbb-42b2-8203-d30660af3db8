@@ -124,6 +124,9 @@ func (s *Service) ListBatches(ctx context.Context, query domain.BatchListQuery) 
 	if err != nil {
 		return domain.BatchListResult{}, err
 	}
+	if err := checkListContext(ctx); err != nil {
+		return domain.BatchListResult{}, err
+	}
 	filtered := make([]domain.CustodyBatch, 0, len(batches))
 	totals := domain.NewBatchListTotals()
 	for _, batch := range batches {
@@ -136,12 +139,18 @@ func (s *Service) ListBatches(ctx context.Context, query domain.BatchListQuery) 
 			filtered = append(filtered, batch)
 		}
 	}
+	if err := checkListContext(ctx); err != nil {
+		return domain.BatchListResult{}, err
+	}
 	sort.Slice(filtered, func(i, j int) bool {
 		if filtered[i].UpdatedAt.Equal(filtered[j].UpdatedAt) {
 			return filtered[i].ID < filtered[j].ID
 		}
 		return filtered[i].UpdatedAt.Before(filtered[j].UpdatedAt)
 	})
+	if err := checkListContext(ctx); err != nil {
+		return domain.BatchListResult{}, err
+	}
 	start := 0
 	if query.Cursor != "" {
 		cursor, err := decodeBatchCursor(query.Cursor)
@@ -163,6 +172,9 @@ func (s *Service) ListBatches(ctx context.Context, query domain.BatchListQuery) 
 	result := domain.BatchListResult{Items: make([]domain.BatchSummary, 0, end-start), Totals: totals}
 	for _, batch := range filtered[start:end] {
 		result.Items = append(result.Items, batch.Summary())
+	}
+	if err := checkListContext(ctx); err != nil {
+		return domain.BatchListResult{}, err
 	}
 	if end < len(filtered) && end > start {
 		last := filtered[end-1]
@@ -277,7 +289,7 @@ func checkListContext(ctx context.Context) error {
 	}
 	select {
 	case <-ctx.Done():
-		return nil
+		return ctx.Err()
 	default:
 		return nil
 	}
