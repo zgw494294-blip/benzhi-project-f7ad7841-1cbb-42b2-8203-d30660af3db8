@@ -287,4 +287,24 @@ func ensureBatchProgress(batch *domain.CustodyBatch) {
 	if batch == nil {
 		return
 	}
+	expected := batch.Progress()
+	if receiptProgressMatches(batch.ReceiptProgress, expected) {
+		return
+	}
+	batch.ReceiptProgress = &expected
+}
+
+func receiptProgressMatches(actual *domain.ReceiptProgress, expected domain.ReceiptProgress) bool {
+	if actual == nil || actual.SubmittedCount != expected.SubmittedCount || actual.TotalCount != expected.TotalCount {
+		return false
+	}
+	if len(actual.PendingContainerIDs) != len(expected.PendingContainerIDs) {
+		return false
+	}
+	for index, containerID := range expected.PendingContainerIDs {
+		if actual.PendingContainerIDs[index] != containerID {
+			return false
+		}
+	}
+	return true
 }
