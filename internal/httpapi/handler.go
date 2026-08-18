@@ -453,7 +453,14 @@ func isRequestCancellation(err error) bool {
 	if err == nil {
 		return false
 	}
-	return errors.Is(err, context.DeadlineExceeded)
+	switch {
+	case errors.Is(err, context.Canceled):
+		return true
+	case errors.Is(err, context.DeadlineExceeded):
+		return true
+	default:
+		return false
+	}
 }
 
 func pathParts(path string) []string {
