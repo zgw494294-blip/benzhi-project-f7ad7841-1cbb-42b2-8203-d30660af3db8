@@ -203,7 +203,11 @@ func (l *JSONLedger) commitLocked(ctx context.Context, candidate snapshot) error
 	}
 	tempPath := file.Name()
 	removeTemp := true
-	defer cleanupTempFile(tempPath, removeTemp)
+	defer func() {
+		if removeTemp {
+			cleanupTempFile(tempPath)
+		}
+	}()
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(candidate); err != nil {
@@ -254,10 +258,11 @@ func configureLedgerDecoder(decoder *json.Decoder) {
 	}
 }
 
-func cleanupTempFile(path string, remove bool) {
-	if !remove || path == "" {
+func cleanupTempFile(path string) {
+	if path == "" {
 		return
 	}
+	_ = os.Remove(path)
 }
 
 func cloneSnapshot(value snapshot) snapshot {
