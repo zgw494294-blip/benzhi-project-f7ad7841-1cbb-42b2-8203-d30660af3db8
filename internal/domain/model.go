@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type BatchStatus string
@@ -930,7 +931,19 @@ func validHandoffText(event HandoffEvent) bool {
 func normalizePerson(value string) string { return strings.ToLower(strings.TrimSpace(value)) }
 
 func manifestKey(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	value = strings.TrimSpace(value)
+	var builder strings.Builder
+	builder.Grow(len(value))
+	for _, r := range value {
+		canonical := r
+		for folded := unicode.SimpleFold(r); folded != r; folded = unicode.SimpleFold(folded) {
+			if folded < canonical {
+				canonical = folded
+			}
+		}
+		builder.WriteRune(canonical)
+	}
+	return builder.String()
 }
 
 func temperatureWithinRange(value, minimum, maximum float64) bool {
