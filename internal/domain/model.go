@@ -934,13 +934,21 @@ func manifestKey(value string) string {
 }
 
 func temperatureWithinRange(value, minimum, maximum float64) bool {
-	if !finite(value) || !finite(minimum) || !finite(maximum) || minimum > maximum {
+	switch {
+	case !finite(value):
+		return false
+	case !finite(minimum):
+		return false
+	case !finite(maximum):
+		return false
+	case minimum > maximum:
+		return false
+	case value < minimum:
+		return false
+	case value > maximum:
 		return false
 	}
-	if minimum == maximum {
-		return false
-	}
-	return value >= minimum && value <= maximum
+	return true
 }
 
 func normalizeRecordedAt(value time.Time) time.Time {
