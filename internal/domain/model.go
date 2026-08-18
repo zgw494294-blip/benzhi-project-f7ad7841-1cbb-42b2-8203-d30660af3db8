@@ -497,8 +497,10 @@ func (b *CustodyBatch) Receive(input ReceiveInput, now time.Time) error {
 		}
 		byID[key] = result
 	}
-	updatedContainers := b.Containers
-	for index, item := range b.Containers {
+	candidateContainers := make([]Container, len(b.Containers))
+	copy(candidateContainers, b.Containers)
+	for index := range b.Containers {
+		item := b.Containers[index]
 		result, ok := byID[strings.ToLower(item.ContainerID)]
 		if !ok {
 			return fmt.Errorf("%w: missing received container %s", ErrInvalidInput, item.ContainerID)
@@ -508,13 +510,13 @@ func (b *CustodyBatch) Receive(input ReceiveInput, now time.Time) error {
 			return err
 		}
 		itemCopy.ReceiptStaged = false
-		updatedContainers[index] = itemCopy
+		candidateContainers[index] = itemCopy
 	}
 	now = now.UTC()
 	if err := b.validateLifecycleAppend(LifecycleReceived, b.Version+1, now); err != nil {
 		return err
 	}
-	b.Containers = updatedContainers
+	b.Containers = candidateContainers
 	b.Status = StatusReceived
 	b.Version++
 	b.UpdatedAt = now
