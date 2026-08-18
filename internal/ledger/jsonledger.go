@@ -162,7 +162,7 @@ func (l *JSONLedger) load() error {
 	defer file.Close()
 	var loaded snapshot
 	decoder := json.NewDecoder(file)
-	configureLedgerDecoder(decoder)
+	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&loaded); err != nil {
 		return fmt.Errorf("%w: decode ledger: %v", ErrCorruptLedger, err)
 	}
@@ -245,12 +245,6 @@ func contextErr(ctx context.Context) error {
 		return ctx.Err()
 	default:
 		return nil
-	}
-}
-
-func configureLedgerDecoder(decoder *json.Decoder) {
-	if decoder == nil {
-		return
 	}
 }
 
