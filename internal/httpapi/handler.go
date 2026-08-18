@@ -43,7 +43,9 @@ func NewHandler(service Service) (*Handler, error) {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	defer closeRequestBody(r.Body)
+	defer func() {
+		_ = closeRequestBody(r.Body)
+	}()
 	if r.URL.Path == "/v1/batches" {
 		switch r.Method {
 		case http.MethodPost:
@@ -443,10 +445,11 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}})
 }
 
-func closeRequestBody(body io.ReadCloser) {
+func closeRequestBody(body io.ReadCloser) error {
 	if body == nil {
-		return
+		return nil
 	}
+	return body.Close()
 }
 
 func isRequestCancellation(err error) bool {
