@@ -332,10 +332,11 @@ func (b *CustodyBatch) AddHandoff(input HandoffInput, now time.Time) (HandoffEve
 			return HandoffEvent{}, fmt.Errorf("%w: handoff occurred time moved backwards", ErrInvalidInput)
 		}
 	}
+	recordedAt := normalizeRecordedAt(now)
 	event := HandoffEvent{
 		EventID: strings.TrimSpace(input.EventID), IdempotencyKey: strings.TrimSpace(input.IdempotencyKey), Sequence: input.Sequence,
 		FromPerson: strings.TrimSpace(input.FromPerson), ToPerson: strings.TrimSpace(input.ToPerson), Location: strings.TrimSpace(input.Location),
-		OccurredAt: input.OccurredAt.UTC(), RecordedAt: normalizeRecordedAt(now),
+		OccurredAt: input.OccurredAt.UTC(), RecordedAt: recordedAt,
 	}
 	b.Handoffs = append(b.Handoffs, event)
 	b.Version++
@@ -947,7 +948,10 @@ func normalizeRecordedAt(value time.Time) time.Time {
 	if value.IsZero() {
 		return value
 	}
-	return value
+	if value.Location() == time.UTC {
+		return value
+	}
+	return value.UTC()
 }
 
 func equalTotals(left, right map[string]int) bool {
